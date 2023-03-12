@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TaskScheduler.Models;
 using TaskScheduler.Models.PeriodicalTasks;
@@ -14,12 +15,14 @@ public class Scheduler
     private readonly IServiceProvider _serviceProvider;
     private readonly ITaskStateStorage _taskStateStorage;
     private readonly IOptionsMonitor<SchedulerConfiguration> _configuration;
+    private readonly ILogger<Scheduler> _logger;
 
-    public Scheduler(ITaskStateStorage taskStateStorage, IServiceProvider serviceProvider, IOptionsMonitor<SchedulerConfiguration> configuration)
+    public Scheduler(ITaskStateStorage taskStateStorage, IServiceProvider serviceProvider, IOptionsMonitor<SchedulerConfiguration> configuration, ILogger<Scheduler> logger)
     {
         _taskStateStorage = taskStateStorage;
         _serviceProvider = serviceProvider;
         _configuration = configuration;
+        _logger = logger;
 
         _semaphore = new SemaphoreSlim(1, 1);
         _timer = new Timer((state) => { RunTasks(); }, null, Timeout.Infinite, Timeout.Infinite);
@@ -33,6 +36,12 @@ public class Scheduler
             .Where(t => initialTasks.Contains(t.Name))
             .ToList();
         
+        _logger.LogInformation("Registered tasks {tasks}", (object)tasks.Select(t => t.Name).ToArray());
+        
+        if (tasks.Count != initialTasks.Count)
+            _logger.LogWarning("Unable to find tasks {tasks}", 
+                (object)initialTasks.Where(it => tasks.All(t => t.Name != it)));
+        
         ScheduleTasks(tasks);
     }
 
@@ -44,12 +53,25 @@ public class Scheduler
         foreach (var taskToRemove in registeredTasks.Where(t => !tasks.Contains(t.Name)))
         {
             _taskStateStorage.Remove(taskToRemove.Name);
+            _logger.LogInformation("Remove task {task}", taskToRemove.Name);
         }
 
-        var newTasks = tasks
-            .Where(t => registeredTasks.All(ts => ts.Name != t))
-            .Select(TaskScanner.GetTask)
-            .ToList();
+        var newTasks = new List<Type>();
+
+        foreach (var newTask in tasks.Where(t => registeredTasks.All(ts => ts.Name != t)))
+        {
+            var newTaskType = TaskScanner.GetTask(newTask);
+            
+            if (newTaskType is null)
+            {
+                _logger.LogWarning("Unable to find task {task}", newTask);
+                continue;
+            }
+
+            newTasks.Add(newTaskType);
+            _logger.LogInformation("Add new task {task}", newTask);
+        }
+        
         ScheduleTasks(newTasks);
         _semaphore.Release();
     }

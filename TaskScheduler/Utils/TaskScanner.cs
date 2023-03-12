@@ -14,7 +14,7 @@ public static class TaskScanner
             .ToList();
     }
 
-    public static Type GetTask(string name)
+    public static Type? GetTask(string name)
     {
         return GetAllTasks().FirstOrDefault(t => t.Name == name);
     }
