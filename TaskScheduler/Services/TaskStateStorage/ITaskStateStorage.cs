@@ -1,4 +1,6 @@
-namespace TaskScheduler;
+using TaskScheduler.Models;
+
+namespace TaskScheduler.Services.TaskStateStorage;
 
 public interface ITaskStateStorage
 {

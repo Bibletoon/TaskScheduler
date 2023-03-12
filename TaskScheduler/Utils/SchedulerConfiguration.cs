@@ -1,4 +1,4 @@
-namespace TaskScheduler;
+namespace TaskScheduler.Utils;
 
 public class SchedulerConfiguration
 {

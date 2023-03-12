@@ -1,4 +1,4 @@
-namespace TaskScheduler.PeriodicalTasks;
+namespace TaskScheduler.Models.PeriodicalTasks;
 
 public interface IPeriodicalTask
 {

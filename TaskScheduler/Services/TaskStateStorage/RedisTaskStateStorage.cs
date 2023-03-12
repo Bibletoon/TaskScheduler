@@ -1,6 +1,7 @@
 using StackExchange.Redis;
+using TaskScheduler.Models;
 
-namespace TaskScheduler;
+namespace TaskScheduler.Services.TaskStateStorage;
 
 public class RedisTaskStateStorage : ITaskStateStorage
 {

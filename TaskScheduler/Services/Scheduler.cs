@@ -1,8 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using TaskScheduler.PeriodicalTasks;
+using TaskScheduler.Models;
+using TaskScheduler.Models.PeriodicalTasks;
+using TaskScheduler.Services.TaskStateStorage;
+using TaskScheduler.Utils;
 
-namespace TaskScheduler;
+namespace TaskScheduler.Services;
 
 public class Scheduler
 {

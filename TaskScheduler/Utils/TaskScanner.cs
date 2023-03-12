@@ -1,7 +1,6 @@
-using System.Reflection;
-using TaskScheduler.PeriodicalTasks;
+using TaskScheduler.Models.PeriodicalTasks;
 
-namespace TaskScheduler;
+namespace TaskScheduler.Utils;
 
 public static class TaskScanner
 {
