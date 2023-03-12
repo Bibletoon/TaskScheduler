@@ -1,0 +1,53 @@
+@startuml
+
+class Scheduler {
+    + Start()
+    - UpdateTaskList()
+    - RunTasks()
+    - ScheduleTasks()
+    - _configuration : SchedulerConfiguration
+    - _taskStateStorage : ITaskStateStorage
+}
+
+interface ITaskStateStorage {
+    + GetAll() : List<TaskState>
+    + Remove(string name)
+    + Save(List<TaskState> states)
+}
+
+class InMemoryTaskStateStorage {
+    + GetAll() : List<TaskState>
+    + Remove(string name)
+    + Save(List<TaskState> states)
+}
+
+class RedisTaskStateStorage {
+    + GetAll() : List<TaskState>
+    + Remove(string name)
+    + Save(List<TaskState> states)
+}
+
+class TaskState {
+    + Name
+    + NextLaunch : DateTime
+}
+
+class SchedulerConfiguration {
+    Tasks: List<string>
+}
+
+interface IPeriodicalTask {
+    + LaunchPeriod : TimeSpan
+    + Start()
+}
+
+Scheduler -o ITaskStateStorage
+
+InMemoryTaskStateStorage --|> ITaskStateStorage
+RedisTaskStateStorage --|> ITaskStateStorage
+
+ITaskStateStorage ..> TaskState
+Scheduler ..> SchedulerConfiguration
+
+Scheduler --> IPeriodicalTask : "Creates"
+@enduml
