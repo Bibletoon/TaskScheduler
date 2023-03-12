@@ -1,15 +1,21 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 using TaskScheduler;
 
 var configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json", false, true).Build();
 
-var serviceCollection = new ServiceCollection();
-serviceCollection.AddSingleton<Scheduler>();
-serviceCollection.Configure<SchedulerConfiguration>(configuration.GetSection("SchedulerConfiguration"));
-serviceCollection.AddSingleton<IServiceProvider>(sp => sp);
-serviceCollection.AddSingleton<ITaskStateStorage, InMemoryTaskStateStorage>();
-var provider = serviceCollection.BuildServiceProvider();
+var services = new ServiceCollection();
+services.AddSingleton<Scheduler>();
+services.Configure<SchedulerConfiguration>(configuration.GetRequiredSection("SchedulerConfiguration"));
+services.AddSingleton<IServiceProvider>(sp => sp);
+
+var multiplexer = ConnectionMultiplexer.Connect(configuration.GetRequiredSection("RedisConnectionString").Value);
+services.AddSingleton<IConnectionMultiplexer>(multiplexer);
+services.AddSingleton<ITaskStateStorage, RedisTaskStateStorage>();
+
+
+var provider = services.BuildServiceProvider();
 var scheduler = provider.GetService<Scheduler>();
 scheduler.Start();
 
