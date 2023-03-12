@@ -2,7 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using TaskScheduler;
 
-var configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
+var configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json", false, true).Build();
 
 var serviceCollection = new ServiceCollection();
 serviceCollection.AddSingleton<Scheduler>();
@@ -13,4 +13,4 @@ var provider = serviceCollection.BuildServiceProvider();
 var scheduler = provider.GetService<Scheduler>();
 scheduler.Start();
 
-Console.ReadLine();
+await Task.Delay(-1);

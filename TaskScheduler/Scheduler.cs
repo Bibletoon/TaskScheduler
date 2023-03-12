@@ -6,30 +6,54 @@ namespace TaskScheduler;
 
 public class Scheduler
 {
+    private readonly SemaphoreSlim _semaphore;
     private readonly Timer _timer;
     private readonly IServiceProvider _serviceProvider;
     private readonly ITaskStateStorage _taskStateStorage;
-    private readonly SchedulerConfiguration _configuration;
+    private readonly IOptionsMonitor<SchedulerConfiguration> _configuration;
 
-    public Scheduler(ITaskStateStorage taskStateStorage, IServiceProvider serviceProvider, IOptions<SchedulerConfiguration> configuration)
+    public Scheduler(ITaskStateStorage taskStateStorage, IServiceProvider serviceProvider, IOptionsMonitor<SchedulerConfiguration> configuration)
     {
         _taskStateStorage = taskStateStorage;
         _serviceProvider = serviceProvider;
+        _configuration = configuration;
+
+        _semaphore = new SemaphoreSlim(1, 1);
         _timer = new Timer((state) => { RunTasks(); }, null, Timeout.Infinite, Timeout.Infinite);
-        _configuration = configuration.Value;
     }
 
     public void Start()
     {
+        _configuration.OnChange(_ => UpdateTasksList());
+        var initialTasks = _configuration.Get("").Tasks;
         var tasks = TaskScanner.GetAllTasks()
-            .Where(t => _configuration.Tasks.Contains(t.Name))
+            .Where(t => initialTasks.Contains(t.Name))
             .ToList();
         
         ScheduleTasks(tasks);
     }
-    
+
+    private void UpdateTasksList()
+    {
+        var tasks = _configuration.Get("").Tasks;
+        var registeredTasks = _taskStateStorage.GetAll();
+        _semaphore.Wait();
+        foreach (var taskToRemove in registeredTasks.Where(t => !tasks.Contains(t.Name)))
+        {
+            _taskStateStorage.Remove(taskToRemove.Name);
+        }
+
+        var newTasks = tasks
+            .Where(t => registeredTasks.All(ts => ts.Name != t))
+            .Select(TaskScanner.GetTask)
+            .ToList();
+        ScheduleTasks(newTasks);
+        _semaphore.Release();
+    }
+
     private void RunTasks()
     {
+        _semaphore.Wait();
         var tasksSate = _taskStateStorage.GetAll();
 
         var currentTime = DateTime.UtcNow;
@@ -44,6 +68,7 @@ public class Scheduler
         }
 
         ScheduleTasks(launchTasks);
+        _semaphore.Release();
     }
 
     private void ExecuteTask(Type taskType)
@@ -68,6 +93,7 @@ public class Scheduler
             return;
         
         var delay = nearestTask.NextLaunch - currentTime;
+        delay = delay < TimeSpan.Zero ? TimeSpan.Zero : delay;
         _timer.Change((int)delay.TotalMilliseconds, Timeout.Infinite);
         _taskStateStorage.Save(tasks);
     }
